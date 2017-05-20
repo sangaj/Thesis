@@ -254,7 +254,7 @@ for (kkk in 1:1){
           sum4 <- sum4 + t(Ps[, , j-1] + xs[, , j - 1] %*% t(xs[, , j - 1]))
           j <- j + 1
         }
-        Aa[,,i] <- sum3 %*% ginv(jj[[i]]%*%sum4%*%t(jj[[i]]))  #psudeo inverse
+        Aa[,,i] <- sum3 %*% ginv(jj[[i]]%*%sum4)  #psudeo inverse
       }
       newA <- apply(Aa, 2, I)
       
@@ -478,7 +478,7 @@ for (iter in 1:max.iter) {
       sum4 <- sum4 + t(Ps[, , j-1] + xs[, , j - 1] %*% t(xs[, , j - 1]))
       j <- j + 1
     }
-    Aa[,,i] <- sum3 %*% ginv(jj[[i]]%*%sum4 %*% t(jj[[i]]))
+    Aa[,,i] <- sum3 %*% ginv(jj[[i]]%*%sum4)
   }
   newA <- apply(Aa, 2, I)
   
