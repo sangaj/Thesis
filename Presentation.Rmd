@@ -338,7 +338,7 @@ $$
 
 * Example  without input control variables
 
-      + Greedy Algorithm 
+   + Greedy Algorithm 
      
 $$
 \begin{gather*}
