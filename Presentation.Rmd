@@ -347,7 +347,8 @@ $$
 $$
 
 </br>
-<p></p>  + Standard Algorithm 
+<p></p> 
+   + Standard Algorithm 
 
 
 $$
