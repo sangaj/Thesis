@@ -346,8 +346,6 @@ $$
 \end{gather*}
 $$
 
-</br>
-<p></p> 
    + Standard Algorithm 
 
 
