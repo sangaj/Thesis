@@ -251,7 +251,7 @@ for (kkk in 1:1){
         for (j in 2:num){
           u <-  matrix(stack(list[[j-1]][,-(1:3)])[,1])
           sum3 <- sum3 + (Pcs[, , j] + xs[, , j] %*% t(xs[, , j - 1]))[i,] %*% t(jj[[i]]) - newB[i,] %*% u %*% t(xs[, , j-1])%*% t(jj[[i]])
-          sum4 <- sum4 + t(Ps[, , j-1] + xs[, , j - 1] %*% t(xs[, , j - 1]))
+          sum4 <- sum4 + Ps[, , j-1] + xs[, , j - 1] %*% t(xs[, , j - 1])
           j <- j + 1
         }
         Aa[,,i] <- sum3 %*% ginv(jj[[i]]%*%sum4)  #psudeo inverse
@@ -475,7 +475,7 @@ for (iter in 1:max.iter) {
     for (j in 2:num){
       u <-  matrix(stack(list[[j-1]][,-(1:3)])[,1])
       sum3 <- sum3 + (Pcs[, , j] + xs[, , j] %*% t(xs[, , j - 1]))[i,] %*% t(jj[[i]])- newB[i,] %*% u %*% t(xs[, , j-1]) %*% t(jj[[i]])
-      sum4 <- sum4 + t(Ps[, , j-1] + xs[, , j - 1] %*% t(xs[, , j - 1]))
+      sum4 <- sum4 + Ps[, , j-1] + xs[, , j - 1] %*% t(xs[, , j - 1])
       j <- j + 1
     }
     Aa[,,i] <- sum3 %*% ginv(jj[[i]]%*%sum4)
