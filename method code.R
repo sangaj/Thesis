@@ -250,7 +250,7 @@ for (kkk in 1:1){
       for (i in 1:nrow(newA)){
         for (j in 2:num){
           u <-  matrix(stack(list[[j-1]][,-(1:3)])[,1])
-          sum3 <- sum3 + (Pcs[, , j] + xs[, , j] %*% t(xs[, , j - 1]))[i,]  - newB[i,] %*% kk[[i]] u %*% t(xs[, , j-1])
+          sum3 <- sum3 + (Pcs[, , j] + xs[, , j] %*% t(xs[, , j - 1]))[i,]  - newB[i,] %*% kk[[i]] %*% u %*% t(xs[, , j-1])
           sum4 <- sum4 + Ps[, , j-1] + xs[, , j - 1] %*% t(xs[, , j - 1])
           j <- j + 1
         }
@@ -474,7 +474,7 @@ for (iter in 1:max.iter) {
   for (i in 1:nrow(newA)){
     for (j in 2:num){
       u <-  matrix(stack(list[[j-1]][,-(1:3)])[,1])
-      sum3 <- sum3 + (Pcs[, , j] + xs[, , j] %*% t(xs[, , j - 1]))[i,]  - newB[i,] %*% kk[[i]] u %*% t(xs[, , j-1])
+      sum3 <- sum3 + (Pcs[, , j] + xs[, , j] %*% t(xs[, , j - 1]))[i,]  - newB[i,] %*% kk[[i]] %*% u %*% t(xs[, , j-1])
       sum4 <- sum4 + Ps[, , j-1] + xs[, , j - 1] %*% t(xs[, , j - 1])
       j <- j + 1
     }
