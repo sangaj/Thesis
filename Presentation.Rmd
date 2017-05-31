@@ -35,17 +35,17 @@ map <- qmap("2141CN",zoom = 12,maptype="toner-lite")
 * <div class="gray"> Conclusion & Future Work</div>
 
 
-## Preliminary
+##Preliminary
 
 
 * Kalman Filter Model
     + Description 
-    + Simple model in Mathematical Form
+    + Simple system model in Mathematical Form
 * Spatial-Temporal Data
     + Spatial Characteristics
     + Time Characteristics
 
-## Kalman Filter
+##Kalman Filter
 
 
 * Assume that results of experiment are noisy 
@@ -54,11 +54,11 @@ map <- qmap("2141CN",zoom = 12,maptype="toner-lite")
 * Prediction / correction framework
 
 
-## Simplest Model
+##Simplest System Model
 
 <div class="centered">
 
- $y_t = ay_t-1  + w_{t-1}$ 
+ $y_t = ay_{t-1}  + w_{t-1}$ 
 
  $z_t = y_t + v_t$ 
  
@@ -69,7 +69,7 @@ map <- qmap("2141CN",zoom = 12,maptype="toner-lite")
 </div>
 
 
-## Model Extensions
+##Model Extensions
 
 
 * Input control features
@@ -77,7 +77,7 @@ map <- qmap("2141CN",zoom = 12,maptype="toner-lite")
 * Incorporate Spatial-Temporal Data
 
 
-## Spatial-Temporal Data
+##Spatial-Temporal Data
 
 
 * Time Characteristics
@@ -91,19 +91,19 @@ map <- qmap("2141CN",zoom = 12,maptype="toner-lite")
 * Spatial-Temporal Data has both characteristic
 
 
-## One example of areal units
+##One example of areal units
 
 
 <center>![](images/NLD.png)</center>
 
-## The areal grid units in thesis
+##The areal grid units in thesis
 
 
 <center>![](images/grid.png)</center>
 
 
 
-## Neighbourhood assumption
+##Neighbourhood assumption
 
 
 <center>![](images/neibour.png)</center>
@@ -123,7 +123,7 @@ map <- qmap("2141CN",zoom = 12,maptype="toner-lite")
 
 
 
-## Spatial Kalman filter model 
+##Spatial Kalman filter model 
 
 <div class="centered">
 
@@ -137,7 +137,7 @@ $v_ {t}  \sim N(0, R)$
 
 </div>
 
-## Spatial Kalman filter model 
+##Spatial Kalman filter model 
 
 <div class="centered"> $z(t) = y(t) + v_t$ </div>
 
@@ -169,13 +169,13 @@ z(t)
 \end{gather*}
 $$
 
-## Spatial Kalman filter model 
+##Spatial Kalman filter model 
 
 <div class="centered"> $y(t) = Ay(t-1) + Bu(t-1) + w_{t-1}$ </div>
 
 <br />
 
-* $u(t)$ is vectors containing all locations and all input control features
+* $u(t)$ is a vector containing all locations and all input control features
 
 $$
 \begin{gather*}
@@ -190,7 +190,7 @@ u(t) = \begin{bmatrix}
 \end{gather*}
 $$
 
-## Spatial Kalman filter model 
+##Spatial Kalman filter model 
 
 <div class="centered"> $y(t) = Ay(t-1) + Bu(t-1) + w_{t-1}$ </div>
 
@@ -201,7 +201,7 @@ $$
 * They are sparse matrices meeting the neighbourhood assumption
 
 
-## Spatial Kalman filter model 
+##Spatial Kalman filter model 
 
 
 * example rows in matrix $A =(\vec{a_{01}},\dots,\vec{a_{24}})^T$
@@ -217,7 +217,7 @@ $$
 
 
 
-## Spatial Kalman filter model 
+##Spatial Kalman filter model 
 
 
 * example for matrix B
@@ -235,7 +235,7 @@ $$
 * each submatrix in matrix B has the same structure as matrix A
 
 
-## Inference in Spatial Kalman filter
+##Inference in Spatial Kalman filter
 
 
 * Kalman Filter
@@ -246,66 +246,71 @@ $$
     + Backward process
     
     
-## Kalman Filter
+##Kalman Filter
 
 
 * $P_t^{t^\ast}$ is the expected state vector at time $t$ given the observations vector and input variables from time one to time $t^\ast$. 
 
-* $V_t^{t^\ast}$ refers to the state covariance matrix at time $t$ given the observations vector and input variables from time one to time $t^\ast$.
+* $V_t^{t^\ast}$ refers to the state variance matrix at time $t$ given the observations vector and input variables from time one to time $t^\ast$.
 
 * Kalman Gain $K_t$ Weighting of process model vs. measurements
 
 
-## Kalman Filter
+##Kalman Filter
 
 
 <center>![](images/filter.png)</center>
 
 
 
-## Kalman Smoother
+##Kalman Smoother
 
 
 * Include all available measurements
 
 * Backward pass
 
-* $V_{t+1,t}^T$ is the covariance of the joint posterior distribution 
+* $V_{t+1,t}^T$ is the covariance of the joint posterior distribution of all the states given all the measurements and input variables 
 
 
-## Kalman Smoother
+##Kalman Smoother
+
+```{r out.width = '100%', fig.align = "center"}
+library(png)
+library(grid)
+img <- readPNG("images/smoother.png")
+grid.raster(img)
+```
 
 
-<center>![](images/smoother.png){ width=60% }</center>
+
+##Learning in Spatial Kalman filter model 
 
 
-## Learning in Spatial Kalman filter model 
-
-
-* standard Expectation Maximization 
+* Standard Expectation Maximization 
     + non-sparse matrices will be found
 
-* greedy Expectation Maximization
+* Greedy Expectation Maximization
     + estimate each row of matrix to respect the assumption
 
-## Greedy Expectation Maximization 
+##Greedy Expectation Maximization 
 
 
-1. Give initial value A,B,Q,R,$\pi_1$,$V_1$ to start the algorithm
-2. Implement the Kalman recursion given A,B,Q,R,$\pi_1$,$V_1$ and $z_{1:T}$ to calculate the required quantities $E[y(t)|z_{1:T}]$, $E[y(t)y(t-1)^{'}|z_{1:T}]$ and $E[y(t)y(t)^{'}|z_{1:T}]$.
-3. Maximize the expected log likelihood $\Phi$ to find the updated new value of each row in A, each row in B,Q,R,$\pi_1$,$V_1$ and row-wise consolidation for A and B
+1. Give initial value A,B,Q,R to start the algorithm
+2. Implement the Kalman recursion given A,B,Q,R and $z_{1:T}$ to calculate the required quantities $E[y(t)|z_{1:T}]$, $E[y(t)y(t-1)^{'}|z_{1:T}]$ and $E[y(t)y(t)^{'}|z_{1:T}]$.
+3. Maximize the expected log likelihood $\Phi$ to find the updated new value of each row in A, each row in B,Q,R and row wise concatenation for A and B
 4. Check the convergence criteria of the likelihood $\Phi$, repeat the step (2) and step (3) until it has converged.
 
 
-## Respect the sparse structure in matrix A and matrix B
+##Respect the sparse structure in matrix A and matrix B
 
 
 * indicator matrix for each row
 * indicator matrix is diagonal
-* each row represents one location
 * entries of diagonal in indicator matrix follow spatial assumption
+* Each row vector times corrsponding indicator matrix to respect the strucutre
 
-## Respect the sparse structure in matrix A and matrix B
+##Respect the sparse structure in matrix A and matrix B
 
 * Example of diagonal entries in the indicator matrix $J_s$ for the 3rd row of A
 
@@ -324,7 +329,7 @@ diag({a_{14}}) = diag(\underbrace{0,\dots,0}_{8},1,1,1,0,1,1,1,0,1,1,1, \underbr
 $$
 
 
-## Update equations for parameters
+##Update equations for parameters
 
 
 * only matrix A and matrix B using greedy algorithm
@@ -334,11 +339,11 @@ $$
 * Evaluate A and B first, then Q and R
 
 
-## Update equations for A 
+##Update equations for A 
 
 * Example  without input control variables
 
-   + Greedy Algorithm 
+      + Greedy Algorithm 
      
 $$
 \begin{gather*}
@@ -346,7 +351,8 @@ $$
 \end{gather*}
 $$
 
-   + Standard Algorithm 
+</br>
+<p></p>  + Standard Algorithm 
 
 
 $$
@@ -356,11 +362,11 @@ A = (\sum_{t=2}^{T}E[{y}({t}){y}({t-1})^{'}])(\sum_{t=2}^{T}E[{y}({t-1}){y}({t-1
 $$
 
 
-## Update equations for others
+##Update equations for others
 
 * Equations for B
     
-     + Indicator matrix in the equations  
+     + Indicator matrix in the denominator 
 
 
 * Equations for others are same with those in Standard algorithm
@@ -368,7 +374,7 @@ $$
 
 
 
-## Properties of Sparse Kalman Model
+##Properties of Sparse Kalman Model
 
 
 * Initialization Sensitivity
@@ -376,7 +382,7 @@ $$
 * Maximum Likelihood non-Monotonicity
 
 
-## Initialization Sensitivity
+##Initialization Sensitivity
 
 In Standard algorithm
 
@@ -392,7 +398,7 @@ In Greedy algorithm
     
 * Kalman filter affect the convergence rate 
 
-## Initialization in limited iterations
+##Initialization in limited iterations
 
 
 * prior information for where to initialize the algorithm is important
@@ -400,7 +406,7 @@ In Greedy algorithm
     + close to local maximum
     + model meaningful and reasonable
   
-## Numerical Instability & Mathematical Issue
+##Numerical Instability & Mathematical Issue
 
 * Matrix should be Positive-definite and invertible
     + rounding issues
@@ -411,7 +417,7 @@ In Greedy algorithm
 
 
 
-## Numerical Instability & Mathematical Issue Solution 
+##Numerical Instability & Mathematical Issue Solution 
 
 
 * return a positive definite and well-conditioned covariance matrix
@@ -422,10 +428,15 @@ In Greedy algorithm
 * Moore–Penrose pseudo-inverse
 
 
-## Maximum Likelihood non-Monotonicity
+##Maximum Likelihood non-Monotonicity
 
 
-<center>![](images/likelihood.png)</center>
+```{r out.width = '100%', fig.align = "center"}
+library(png)
+library(grid)
+img <- readPNG("images/likelihood.png")
+grid.raster(img)
+```
 
 
 ## Outline 
@@ -438,10 +449,10 @@ In Greedy algorithm
 * <div class="gray"> Conclusion & Future Work</div>
 
 
-## Application in Schiphol case
+##Application in Schiphol case
 
 
-* data source
+* Data source
     + RobinRadar
     + Air Traffic Control the Netherlands
     + 10:00 to 12:00 on 7th April 2016 and 8th April 2016 in 24 cells
@@ -449,13 +460,13 @@ In Greedy algorithm
     + Predict the mass density in certain area
 
 
-## Application in Schiphol case
+##Application in Schiphol case
 
 
 <center>![](images/schiphol.png)</center> 
 
 
-## Application in Schiphol case
+##Application in Schiphol case
 
 
 * Feature reduction
@@ -466,7 +477,7 @@ In Greedy algorithm
     + longitude, latitude, heading, mass correction and velocity
   
 
-## Application in Schiphol case
+##Application in Schiphol case
 
 
 * test multiple initial values
@@ -474,7 +485,7 @@ In Greedy algorithm
     + Loglikelihood
     + RMSE & MAE
   
-## Application in Schiphol case
+##Application in Schiphol case
 
 
 * test multiple initial values
@@ -483,14 +494,14 @@ In Greedy algorithm
     + RMSE & MAE
   
 
-## Application in Schiphol case
+##Application in Schiphol case
 
 * Performance when initialized from best RMSE metric
 
 <center>![](images/performance.png)</center> 
 
 
-## Application in Schiphol case
+##Application in Schiphol case
 
 ```{r eruptions,echo = FALSE}
 inputPanel(
@@ -514,7 +525,7 @@ renderPlot({
 ```
 
 
-## Application in Schiphol case
+##Application in Schiphol case
 
 * Lasso gets better prediction ability
 <center>![](images/lasso.png)</center>
@@ -523,7 +534,7 @@ renderPlot({
 
 
 
-## Application in Schiphol case
+##Application in Schiphol case
 
 * The number of parameters is dramatically increasing when each parameter matrix is a spatial correlation map
      + some of parameters can be punished
@@ -541,7 +552,7 @@ renderPlot({
 * Summary & Future Work
 
 
-## Summary
+##Summary
 
 * Combine time dependence with spatial dependence in one stage
 
@@ -551,9 +562,9 @@ renderPlot({
 
 * Greedy EM algorithm to respect the spatial assumption
     
-    + Only approximate local optimization
+    + Only approximate stationary point 
 
-## Future work
+##Future work
 
 *  Reduce parameters
       + Penalty function
