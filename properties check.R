@@ -16,6 +16,7 @@ library(gridExtra)
 
 #-------------------------------------#
 
+# generate the simulated data in a 3*3 grid
 set.seed(2016)
 timelength <- 120
 myts <- strptime("2016-01-01 00:00:00","%Y-%m-%d %H:%M:%S")+300*seq(0,timelength-1)
@@ -24,13 +25,13 @@ leng <- length(loc)
 numtl <- timelength*leng
 mass <- rnorm(numtl,100,10)
 myts <- rep(myts,each=leng)
-loc <-  rep(loc,timelength)
-data <-  data.frame(myts,loc,mass)
-data <-  arrange(data,myts)
+loc <- rep(loc,timelength)
+data <- data.frame(myts,loc,mass)
+data <- arrange(data,myts)
 
 
 
-#---------------------------------
+##---------------------------------##
 # 1.monotonically increasse comparsion
 # initialize A,B,Q,R,pi_1,V_1
 # 9 grid test
@@ -69,6 +70,7 @@ for (iter in 1:max.iter) {
   y[,,1] <- ynew[,,1] <- y.updated
   V[,,1] <- Vnew[,,1] <- V.updated
   
+  # Kalman Filter
   for (i in 2:num){
     y.new <- newA %*% y.updated 
     V.new <- newA %*% V.updated %*% t(newA) + newQ
@@ -85,6 +87,7 @@ for (iter in 1:max.iter) {
     ynew[,,i] <- y.new
   }
   
+  # Kalman Smoother
   xs <-  array(NA, dim = c(leng, 1, num))
   Ps <-  array(NA, dim = c(leng, leng, num))
   Pcs <- array(NA, dim = c(leng, leng, num))
@@ -104,7 +107,7 @@ for (iter in 1:max.iter) {
     Pcs[, , k - 1] <-  V[,,k-1] %*% t(J[,,k-2]) + J[,,k-1] %*% (Pcs[,,k]-newA %*% V[,,k-1]) %*% t(J[,,k-2])
   }
   
-  # function for A
+  # update equations for A
   Aa <- array(NA, dim = c(1,ncol(newA), nrow(newA))) 
   sum3 <- sum4  <- 0
   for (i in 1:nrow(newA)){
@@ -117,6 +120,7 @@ for (iter in 1:max.iter) {
   }
   newA <- apply(Aa, 2, I)
   
+  # update equations for Q
   sum5 <- 0
   for (j in 2:num){
     sum5 <- sum5 + Ps[, , j] + xs[, , j] %*% t(xs[, , j]) + (Pcs[, , j] + xs[, , j] %*% t(xs[, , j - 1])) %*% t(newA) 
@@ -127,6 +131,7 @@ for (iter in 1:max.iter) {
   upperTriangle(newQ) <- lowerTriangle(newQ, diag=FALSE,byrow=TRUE)
   newQ <- make.positive.definite(newQ)
   
+  # update equations for R
   sum6 <- 0
   for (j in 1:num){
     zt <-  matrix(list[[j]][,3])
@@ -233,7 +238,7 @@ for (iter in 1:max.iter) {
     Pcs[, , k - 1] <-  V[,,k-1] %*% t(J[,,k-2]) + J[,,k-1] %*% (Pcs[,,k]-newA %*% V[,,k-1]) %*% t(J[,,k-2])
   }
   
-  # function for A
+  # update equations for A
   sum3 <- sum4  <- 0
   for (j in 2:num){
     sum3 <- sum3 + (Pcs[, , j] + xs[, , j] %*% t(xs[, , j - 1]))
@@ -242,7 +247,7 @@ for (iter in 1:max.iter) {
   }
   newA <- sum3 %*% solve(sum4)
   
-  
+   # update equations for Q
   sum5 <- 0
   for (j in 2:num){
     sum5 <- sum5 + Ps[, , j] + xs[, , j] %*% t(xs[, , j]) + (Pcs[, , j] + xs[, , j] %*% t(xs[, , j - 1])) %*% t(newA) 
@@ -253,6 +258,7 @@ for (iter in 1:max.iter) {
   upperTriangle(newQ) <- lowerTriangle(newQ, diag=FALSE,byrow=TRUE)
   newQ <- make.positive.definite(newQ)
   
+   # update equations for R
   sum6 <- 0
   for (j in 1:num){
     zt <-  matrix(list[[j]][,3])
@@ -367,10 +373,10 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 multiplot(p1, p2, layout=matrix(c(1,1,2,2), nrow=2, byrow=TRUE))
 
 
-##-----------------------------------------------
+##-----------------------------------------------##
 
 # initialization comparsion
-
+# 3*3 grid
 A_9 <- matrix(c(1,1,0,1,1,1,0,1,1),nrow=3,byrow = T) 
 zero <- matrix(0,nrow=3,ncol=3)
 diag <- diag(1,nrow=3,ncol=3)
@@ -380,8 +386,9 @@ A_9.3 <- cbind(zero,diag,A_9)
 #split and order into list
 list <- lapply(split(data, data$myts),function(x) arrange(x,loc))
 num <- length(list)
-# initialized value through greedy algorithm
 
+               
+# initialized value through greedy algorithm
 invalues <- c(0.01,0.1,0.2,0.5,1)
 maxlike <- maxsteps <- numeric(0)
 for (kk in 1:length(invalues)){
@@ -444,7 +451,7 @@ for (kk in 1:length(invalues)){
       Pcs[, , k - 1] <-  V[,,k-1] %*% t(J[,,k-2]) + J[,,k-1] %*% (Pcs[,,k]-newA %*% V[,,k-1]) %*% t(J[,,k-2])
     }
     
-    # function for A
+    # update equations for A
     Aa <- array(NA, dim = c(1,ncol(newA), nrow(newA))) 
     sum3 <- sum4  <- 0
     for (i in 1:nrow(newA)){
@@ -457,6 +464,7 @@ for (kk in 1:length(invalues)){
     }
     newA <- apply(Aa, 2, I)
     
+    # update equations for Q                               
     sum5 <- 0
     for (j in 2:num){
       sum5 <- sum5 + Ps[, , j] + xs[, , j] %*% t(xs[, , j]) + (Pcs[, , j] + xs[, , j] %*% t(xs[, , j - 1])) %*% t(newA) 
@@ -467,6 +475,7 @@ for (kk in 1:length(invalues)){
     upperTriangle(newQ) <- lowerTriangle(newQ, diag=FALSE,byrow=TRUE)
     newQ <- make.positive.definite(newQ)
     
+    # update equations for R                               
     sum6 <- 0
     for (j in 1:num){
       zt <-  matrix(list[[j]][,3])
