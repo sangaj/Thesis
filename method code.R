@@ -1,6 +1,6 @@
 ### Methods application on Schiphol sample data
 
-# loading Package
+# loading Packages
 library(ggplot2)
 library(ggmap)
 library(truncnorm)
@@ -14,26 +14,31 @@ library(Matrix)
 library(stringr)
 library(reshape2)
 library(caret)
+library(factoextra)
+library(FactoMineR)
 
+##----------------------------------------------##
 ## Data Preprocessing
 
 # join two tables and extract the information we need
 track <- read.table("track.csv",header=T,sep=",")
 trackestimate <- read.table("trackestimate.csv",header=T,sep=",")
 trackestimate$timestamp <- ymd_hms(substr(trackestimate$timestamp,1,19))
-track <- subset(track,classification_id != 1,select=c(id,classification_id,distance_travelled,score))
+track <- subset(track,classification_id != 1,select=c(id,classification_id,distance_travelled,score)) #drop planes 
 colnames(track)[1] <- "track_id"
+# extract coordinates
 trackestimate$st_astext <- gsub("POINT Z ","",trackestimate$st_astext) 
 trackestimate$st_astext <- gsub("[()]","",trackestimate$st_astext) 
 location <- as.data.frame(str_split_fixed(trackestimate$st_astext, " ", 3))
 names(location) <- c("longitude", "latitude", "altitude")
 trackestimate <- cbind(subset(trackestimate, select=-st_astext),subset(location, select=c(latitude,longitude)))
+# join track and trackestimates table
 bird <- join(trackestimate,track,by="track_id")
 bird <- subset(bird,select=-c(id,track_id,classification_id))
 bird[is.na(bird)] <- 0
 
-# define grid
-## runway coordinates
+## define grid
+# runway coordinates
 l_lon <-  4.706
 r_lat <-  52.368
 r_lon <-  4.717
@@ -68,17 +73,16 @@ birds <- subset(birds,select=-c(yy,xx,xy))
 # aggregate each variable into minutes
 birds$timestamp <- trunc(birds$timestamp, "min")
 birds$timestamp <- ymd_hms(birds$timestamp)
-#birds_melt <- melt(birds, id = c("timestamp","cell"))
-#birds <- dcast(birds_melt, timestamp + cell ~ variable, mean) 
 birds <- recast(birds, timestamp + cell ~ variable, mean, id.var = c("timestamp", "cell"))
 
 # clean weather data
 weather <- read.table("weather_2016.csv",sep=",",head=T)
 weatherdate <- data.frame(do.call(rbind, strsplit(as.vector(weather$DATE.LT), split = "-"))) %>% mutate(date=ymd(paste(X3,X2,X1)))
 weather <- cbind.data.frame(weather,ten=weatherdate$date) %>% mutate(ten= paste(ten,TIME.LT)) 
-
+# select one part of data set
 start <- ymd_hms("2016-04-07 00:00:00")
 end <- ymd_hms("2016-04-08 23:59:59")
+# give details about time information
 diffday <- as.numeric(round(difftime(end,start,units="days")))
 diffmin <- as.numeric(round(difftime(end,start,units="mins")))
 timestamp <- rep(seq(from=start, by=60, to=end),each=cellN)
@@ -87,6 +91,7 @@ times <- rep(c(1:diffmin),each=cellN)
 cell <- rep(c(1:cellN),times=diffmin)
 Hours <- cbind.data.frame(timestamp,cell,ten)
 
+# join weather table and bird table
 weather.join <- join(Hours,weather,by=c("ten"),type="left") %>% subset(select=-c(TIME.LT,DATE.LT))
 Bird <- join(weather.join,birds,by=c("timestamp","cell"),type="left")
 
@@ -98,9 +103,8 @@ load("data.RData")
 
 
 
-# features reduction 
-library(factoextra)
-library(FactoMineR)
+##----------------------------------------------##
+### features reduction 
 # change column order and drop same value column 
 Birds <- subset(Birds,select=-c(X.VIS,X.GML,X.SHWR,heading_vertical)) %>% dplyr::select(timestamp, cell, mass, X.CEIL:peak_mass, mass_correction:score)
 # divided into train and test set 
@@ -112,16 +116,22 @@ test <- subset(test, select=-c(X.CEIL,X.WDIR,X.WSPD,X.WGUS))
 # PCA
 res.pca <- PCA(train[,-c(1:2)], graph =FALSE,ncp=10,scale.unit=TRUE,quanti.sup=1)
 fviz_screeplot(res.pca, ncp=10)
-fviz_contrib(res.pca, choice = "var", axes = 1:5,sort.val="desc") # variance>90
+fviz_contrib(res.pca, choice = "var", axes = 1:5,sort.val="desc") # keep variance>90
 fviz_pca_var(res.pca, col.var="cos2") +
   scale_color_gradient2(low="white", mid="blue", 
                         high="red", midpoint=0.5) + theme_minimal()
 
 
 # keep lon,lat,heading,mass_correction,velocity interms of 90% explained variation
-
+# resubset the train and test set.
 train <- subset(train,select=c(timestamp,cell,mass,latitude,longitude,heading,velocity,mass_correction))
 test <-  subset(test,select=c(timestamp,cell,mass,latitude,longitude,heading,velocity,mass_correction))
+
+
+
+
+##----------------------------------------------##
+# apply the methods to find the best initial value for matrix Q and matrix R
 
 # initialize A,B,Q,R,pi_1,V_1
 subA <- matrix(c(1,1,0,0,1,1,1,0,0,1,1,1,0,0,1,1),nrow=4,byrow = T) 
@@ -146,6 +156,7 @@ likely <- numeric(0)
 ### Kalman Model
 for (kkk in 1:1){
     subtrain <- train
+    # standardized features
     procValues <- preProcess(subtrain[,-c(1:2)], method = c("center", "scale"))
     scaledTrain <-  predict(procValues, subtrain)
     scaledTest <-  predict(procValues, test)
@@ -193,10 +204,11 @@ for (kkk in 1:1){
       V[,,1] <- Vnew[,,1] <- V.updated
       
       for (i in 2:num){
+        # Kalman Filter
         u <-  matrix(stack(list[[i]][,-(1:3)])[,1])
         y.new <- newA %*% y.updated + newB %*% u
         V.new <- newA %*% V.updated %*% t(newA) + newQ
-        upperTriangle(V.new) <- lowerTriangle(V.new, diag=FALSE,byrow=TRUE)
+        upperTriangle(V.new) <- lowerTriangle(V.new, diag=FALSE,byrow=TRUE) # make sure it is a symmetric matrix
         Kn <- V.new %*% solve(newR + V.new)
         eye <- diag(1,leng)
         z <- matrix(list[[i]]$mass)
@@ -209,7 +221,7 @@ for (kkk in 1:1){
         K[, ,i] <- Kn
       }
       
-      
+      # Kalman Smoother
       xs <-  array(NA, dim = c(leng, 1, num))
       Ps <-  array(NA, dim = c(leng, leng, num))
       Pcs <- array(NA, dim = c(leng, leng, num))
@@ -229,7 +241,7 @@ for (kkk in 1:1){
         Pcs[, , k - 1] <-  V[,,k-1] %*% t(J[,,k-2]) + J[,,k-1] %*% (Pcs[,,k]-newA %*% V[,,k-1]) %*% t(J[,,k-2])
       }
       
-      # equation for B
+      # update equations for B
       Bb <- array(NA, dim = c(1,ncol(newB), nrow(newB))) 
       sum1 <- sum2  <- 0
       for(i in 1:nrow(newB)){
@@ -244,7 +256,7 @@ for (kkk in 1:1){
       }
       newB <- apply(Bb, 2, I) 
       
-      # equation for A
+      # update equations for A
       Aa <- array(NA, dim = c(1,ncol(newA), nrow(newA))) 
       sum3 <- sum4  <- 0
       for (i in 1:nrow(newA)){
@@ -259,7 +271,7 @@ for (kkk in 1:1){
       newA <- apply(Aa, 2, I)
       
       
-      # equation for Q
+      # update equations for Q
       sum5 <- 0
       for (j in 2:num){
         u <-  matrix(stack(list[[j-1]][,-(1:3)])[,1])
@@ -269,10 +281,10 @@ for (kkk in 1:1){
         j <- j + 1
       }
       newQ <- sum5 * (num - 1)^{-1}
-      upperTriangle(newQ) <- lowerTriangle(newQ, diag=FALSE,byrow=TRUE)
+      upperTriangle(newQ) <- lowerTriangle(newQ, diag=FALSE,byrow=TRUE) # make sure it is a symmetric matrix
       newQ <- make.positive.definite(newQ)
       
-      # equation for R
+      # update equations for R
       sum6 <- 0
       for (j in 1:num){
         zt <-  matrix(list[[j]][,3])
@@ -280,7 +292,7 @@ for (kkk in 1:1){
         j <- j + 1
       }
       newR <- sum6 * (num)^{-1}
-      upperTriangle(newR) <- lowerTriangle(newR, diag=FALSE,byrow=TRUE)
+      upperTriangle(newR) <- lowerTriangle(newR, diag=FALSE,byrow=TRUE) # make sure it is a symmetric matrix
       newR <- make.positive.definite(newR)
       
       # equation for pi1 and V1
@@ -334,7 +346,7 @@ for (kkk in 1:1){
     }
     
     
-    # train error
+    # calculate train error
     stepmax <- which.max(likelihood[1:iter])
     likely[kkk] <- max(likelihood[1:iter])
     As <- A[,,stepmax]
@@ -380,8 +392,8 @@ for (kkk in 1:1){
 
 
 
-
-# plot and prediction on test set
+##----------------------------------------------------------##
+# plot and prediction on test set in terms of the results above
 
 RMSE <- MAE <- numeric(0)
 subtrain <- train
@@ -418,8 +430,6 @@ A <- Q <- R <- Vv1 <- array(NA, dim = c(leng, leng, max.iter))
 Pi1<- array(NA, dim = c(leng, 1, max.iter))
 B <- array(NA, dim = c(leng, leng * featureN, max.iter))
 cvg <-  1 + tol
-# kalman filter
-# give the u value
 
 for (iter in 1:max.iter) {
   y.updated <- pi1
@@ -468,7 +478,7 @@ for (iter in 1:max.iter) {
   }
   
   
-  # function for A
+  # equation for A
   Aa <- array(NA, dim = c(1,ncol(newA), nrow(newA))) 
   sum3 <- sum4  <- 0
   for (i in 1:nrow(newA)){
@@ -483,7 +493,7 @@ for (iter in 1:max.iter) {
   newA <- apply(Aa, 2, I)
   
   
-  
+  # equation for B
   Bb <- array(NA, dim = c(1,ncol(newB), nrow(newB))) 
   sum1 <- sum2  <- 0
   for(i in 1:nrow(newB)){
@@ -497,7 +507,7 @@ for (iter in 1:max.iter) {
   }
   newB <- apply(Bb, 2, I) 
   
-  
+   # equation for Q
   sum5 <- 0
   for (j in 2:num){
     u <-  matrix(stack(list[[j-1]][,-(1:3)])[,1])
@@ -510,6 +520,7 @@ for (iter in 1:max.iter) {
   upperTriangle(newQ) <- lowerTriangle(newQ, diag=FALSE,byrow=TRUE)
   newQ <- make.positive.definite(newQ)
   
+   # equation for R
   sum6 <- 0
   for (j in 1:num){
     zt <-  matrix(list[[j]][,3])
@@ -637,7 +648,7 @@ MAEcore <-  sum(abs(coreerror))/(nrow(coreerror)*ncol(coreerror))
 
 
 
-
+# plot the results
 
 library(ggplot2)
 library(gtable)
@@ -760,19 +771,20 @@ grid.newpage()
 grid.draw(gg)
 
 
-##-----------------------##
+##-------------------------------------------##
 ## penalized  regression ##
 ### data preparation #
 load("data.RData")
 Birds.r <- subset(Birds,select=c(timestamp,cell,mass,latitude,longitude,heading,velocity,mass_correction))
 
+# split into train and test set/ standardized features
 train.r <- subset(Birds.r,lubridate::day(Birds.r$times)==7)
 test.r <- subset(Birds.r,lubridate::day(Birds.r$times)==8)
 procValues <- preProcess(train.r[,-c(1:2)], method = c("center", "scale"))
 scaledTrain <-  predict(procValues, train.r)
 scaledtest <-  predict(procValues, test.r)
 
-
+# assign the neighbourhood locations for each cells
 trans <- function(mat){
   grid <- alply(mat,1,.dims=TRUE)
   gridmatrix <- lapply(grid, function(x) matrix(x,nrow=6,byrow=TRUE))
@@ -828,6 +840,8 @@ trans <- function(mat){
   })
   unlistdf
 }
+                    
+# transform the dataset and put all neighbourhood cells features into it in test set                   
 aqm <- melt(scaledtest, id=c("timestamp", "cell"), na.rm=TRUE)
 acast <- acast(aqm, timestamp ~ cell ~ variable)
 attply <- alply(acast,3,.dims = TRUE)
@@ -846,7 +860,8 @@ scaledtest <- cbind(alldata[,c(1,2,7)],pretime.fea)
 scaledtest  <- scaledtest[-c(1:24),]
 colnames(scaledtest)[which(names(scaledtest ) == "mass.V5")] <- "mass"
 scaledtest$cell <- as.factor(scaledtest$cell) 
-#train set
+
+# transform the dataset and put all neighbourhood cells features into it in train set   
 aqm <- melt(scaledTrain, id=c("timestamp", "cell"), na.rm=TRUE)
 acast <- acast(aqm, timestamp ~ cell ~ variable)
 attply <- alply(acast,3,.dims = TRUE)
@@ -866,15 +881,17 @@ scaledTrain  <- scaledTrain[-c(1:24),]
 colnames(scaledTrain)[which(names(scaledTrain ) == "mass.V5")] <- "mass"
 scaledTrain$cell <- as.factor(scaledTrain$cell) 
 
-### lasso regression #
+# lasso regression #
 
 
-# assign fold
+# assign fold and use h2o package
 library(h2o)
 h2o.init(max_mem_size = "8g",nthreads = -1)
 rmse.r <- mae.r <- RMSE.r <-  numeric(0)
+
+# using progress validation since it is time correlated data instead of cross validation
 fold <- c(44,59,74,89,104,119)
-lamb <- seq(0.005,0.25,by=0.005)
+lamb <- seq(0.005,0.25,by=0.005) # search for the best lambda
 for (j in 1:length(lamb)){
 for (ii in 1:5){
 subtrain.r <- scaledTrain[c(1:(fold[ii]*8)),]
